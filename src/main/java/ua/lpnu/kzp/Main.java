@@ -32,6 +32,30 @@ public final class Main {
             return;
         }
 
+        // Викликаємо метод, який робить усю математику та формує звіт
+        String report = processLines(lines);
+
+        // Вивід у консоль
+        System.out.println(report);
+
+        // Запис у файл
+        try {
+            Path parentDir = outputPath.getParent();
+            if (parentDir != null) {
+                Files.createDirectories(parentDir);
+            }
+            Files.writeString(outputPath, report, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            System.out.println("Помилка запису звіту у файл: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Обробляє рядки, перевіряє їх і формує текстовий звіт.
+     * @param lines список рядків для обробки
+     * @return готовий відформатований текст звіту
+     */
+    public static String processLines(List<String> lines) {
         List<String> errors = new ArrayList<>();
         int validCount = 0;
         double totalRevenue = 0.0;
@@ -70,7 +94,6 @@ public final class Main {
                 
                 boolean isUrgent = Boolean.parseBoolean(urgentStr);
 
-                // Якщо всі перевірки пройдені, додаємо до статистики
                 validCount++;
                 totalRevenue += price;
                 if (isUrgent) {
@@ -84,7 +107,6 @@ public final class Main {
 
         double averagePrice = validCount == 0 ? 0.0 : totalRevenue / validCount;
 
-        // Формування звіту
         StringBuilder report = new StringBuilder();
         report.append(String.format(Locale.ROOT, "Кількість коректних записів: %d%n", validCount));
         report.append(String.format(Locale.ROOT, "Загальний виторг: %.2f%n", totalRevenue));
@@ -96,17 +118,6 @@ public final class Main {
             report.append(error).append(System.lineSeparator());
         }
 
-        // Вивід у консоль
-        System.out.println(report.toString());
-
-        // Запис у файл
-        try {
-            if (outputPath.getParent() != null) {
-                Files.createDirectories(outputPath.getParent());
-            }
-            Files.writeString(outputPath, report.toString(), StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            System.out.println("Помилка запису звіту у файл: " + e.getMessage());
-        }
+        return report.toString();
     }
 }
