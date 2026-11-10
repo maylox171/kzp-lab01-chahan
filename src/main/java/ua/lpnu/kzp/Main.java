@@ -1,6 +1,8 @@
 package ua.lpnu.kzp;
 
-import java.io.IOException;
+import java.io.FileDescriptor;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -8,116 +10,72 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * Головний клас програми для обробки даних ветеринарної клініки.
- */
-public final class Main {
-    
-    private Main() {
-    }
+public class Main {
 
     /**
-     * Точка входу до програми.
-     * @param args аргументи командного рядка
-     */
-    public static void main(String[] args) {
-        Path inputPath = Path.of("data", "input.csv");
-        Path outputPath = Path.of("out", "report.txt");
-
-        List<String> lines;
-        try {
-            lines = Files.readAllLines(inputPath, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            System.out.println("Не вдалося прочитати файл: " + e.getMessage());
-            return;
-        }
-
-        // Викликаємо метод, який робить усю математику та формує звіт
-        String report = processLines(lines);
-
-        // Вивід у консоль
-        System.out.println(report);
-
-        // Запис у файл
-        try {
-            Path parentDir = outputPath.getParent();
-            if (parentDir != null) {
-                Files.createDirectories(parentDir);
-            }
-            Files.writeString(outputPath, report, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            System.out.println("Помилка запису звіту у файл: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Обробляє рядки, перевіряє їх і формує текстовий звіт.
-     * @param lines список рядків для обробки
-     * @return готовий відформатований текст звіту
+     * Обробляє список вхідних рядків CSV, створює об'єкти візитів,
+     * збирає статистику та формує звіт для тестів і консолі.
      */
     public static String processLines(List<String> lines) {
-        List<String> errors = new ArrayList<>();
-        int validCount = 0;
-        double totalRevenue = 0.0;
-        int urgentCount = 0;
+        List<VetVisit> visits = new ArrayList<>();
+        List<String> errorMessages = new ArrayList<>();
 
-        for (int i = 0; i < lines.size(); i++) {
-            String line = lines.get(i);
-            
+        for (int index = 0; index < lines.size(); index++) {
+            String line = lines.get(index);
             if (line.isBlank()) {
                 continue;
             }
-
-            String[] fields = line.split(";", -1);
-            if (fields.length != 5) {
-                errors.add(String.format("Рядок %d: очікується 5 полів, знайдено %d", i + 1, fields.length));
-                continue;
-            }
-
-            if (fields[0].isBlank() || fields[1].isBlank() || fields[2].isBlank()) {
-                errors.add(String.format("Рядок %d: текстові поля не можуть бути порожніми", i + 1));
-                continue;
-            }
-
             try {
-                double price = Double.parseDouble(fields[3]);
-                if (price < 0) {
-                    errors.add(String.format("Рядок %d: ціна не може бути від'ємною", i + 1));
-                    continue;
-                }
-
-                String urgentStr = fields[4].trim().toLowerCase();
-                if (!urgentStr.equals("true") && !urgentStr.equals("false")) {
-                    errors.add(String.format("Рядок %d: поле urgent має бути true або false", i + 1));
-                    continue;
-                }
-                
-                boolean isUrgent = Boolean.parseBoolean(urgentStr);
-
-                validCount++;
-                totalRevenue += price;
-                if (isUrgent) {
-                    urgentCount++;
-                }
-
-            } catch (NumberFormatException e) {
-                errors.add(String.format("Рядок %d: поле ціни має помилковий формат", i + 1));
+                VetVisit visit = VetVisit.fromCsv(line);
+                visits.add(visit);
+            } catch (IllegalArgumentException e) {
+                // Зберігаємо текст помилки для звіту
+                errorMessages.add("Рядок %d: %s".formatted(index + 1, e.getMessage()));
             }
         }
 
-        double averagePrice = validCount == 0 ? 0.0 : totalRevenue / validCount;
+        double totalPrice = 0.0;
+        int urgentCount = 0;
 
-        StringBuilder report = new StringBuilder();
-        report.append(String.format(Locale.ROOT, "Кількість коректних записів: %d%n", validCount));
-        report.append(String.format(Locale.ROOT, "Загальний виторг: %.2f%n", totalRevenue));
-        report.append(String.format(Locale.ROOT, "Середня вартість візиту: %.2f%n", averagePrice));
-        report.append(String.format(Locale.ROOT, "Кількість ургентних візитів: %d%n", urgentCount));
-        report.append(String.format(Locale.ROOT, "Помилок: %d%n", errors.size()));
-        
-        for (String error : errors) {
-            report.append(error).append(System.lineSeparator());
+        for (VetVisit visit : visits) {
+            totalPrice += visit.getPrice();
+            if (visit.isUrgent()) {
+                urgentCount++;
+            }
         }
 
-        return report.toString();
+        double averagePrice = visits.isEmpty() ? 0.0 : totalPrice / visits.size();
+
+        // Формуємо загальний рядок звіту, який перевіряє MainTest
+        StringBuilder reportBuilder = new StringBuilder();
+        reportBuilder.append(String.format(Locale.ROOT, "Кількість коректних записів: %d%n", visits.size()));
+        reportBuilder.append(String.format(Locale.ROOT, "Загальний виторг: %.2f%n", totalPrice));
+        reportBuilder.append(String.format(Locale.ROOT, "Середня вартість візиту: %.2f%n", averagePrice));
+        reportBuilder.append(String.format(Locale.ROOT, "Кількість ургентних візитів: %d%n", urgentCount));
+        reportBuilder.append(String.format(Locale.ROOT, "Помилок: %d%n", errorMessages.size()));
+
+        for (String err : errorMessages) {
+            reportBuilder.append(err).append(System.lineSeparator());
+        }
+
+        return reportBuilder.toString();
+    }
+
+    public static void main(String[] args) {
+        System.setOut(new PrintStream(new FileOutputStream(FileDescriptor.out), true, StandardCharsets.UTF_8));
+
+        Path inputPath = Path.of("data", "input.csv");
+        if (!Files.exists(inputPath)) {
+            System.err.println("Файл " + inputPath + " не знайдено!");
+            return;
+        }
+
+        try {
+            List<String> lines = Files.readAllLines(inputPath, StandardCharsets.UTF_8);
+            String report = processLines(lines);
+            System.out.println(report);
+        } catch (Exception e) {
+            System.err.println("Помилка читання файлу: " + e.getMessage());
+        }
     }
 }
