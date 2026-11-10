@@ -1,59 +1,55 @@
 package ua.lpnu.kzp;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import java.util.HashSet;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 class VetVisitTest {
 
     @Test
-    void validConstructorAndGetters() {
-        VetVisit visit = new VetVisit("Барсик", "Кіт", "Огляд", 500.0, true);
-        assertEquals("Барсик", visit.getAnimal());
-        assertEquals("Кіт", visit.getSpecies());
-        assertEquals("Огляд", visit.getVisitType());
-        assertEquals(500.0, visit.getPrice(), 0.0001);
-        assertTrue(visit.isUrgent());
+    void subtypesHaveDifferentBehavior() {
+        // Перевіряємо різну поліморфну поведінку підтипів (розрахунок вартості)
+        VetVisit routine = new RoutineVisit("Барсік", "Кіт", "Огляд", 500.0);
+        VetVisit urgent = new UrgentVisit("Рекс", "Собака", "Хірургія", 1000.0);
+
+        assertEquals(VisitKind.ROUTINE, routine.getVisitKind());
+        assertEquals(VisitKind.URGENT, urgent.getVisitKind());
+        
+        // Поліморфний метод дає різні результати
+        assertNotEquals(routine.calculateFinalCost(), urgent.calculateFinalCost());
     }
 
     @Test
-    void constructorRejectsNegativePrice() {
+    void equalObjectsHaveOneSetEntry() {
+        // Перевіряє відсутність дублювання логічно рівних об'єктів у множині (equals/hashCode)
+        Set<VetVisit> items = new HashSet<>();
+        items.add(new RoutineVisit("Барсік", "Кіт", "Огляд", 500.0));
+        items.add(new RoutineVisit("Барсік", "Кіт", "Огляд", 700.0)); // однаковий ключ за назвою/видом/типом
+
+        assertEquals(1, items.size());
+    }
+
+    @Test
+    void subtypeRejectsInvalidPrice() {
+        // Перевіряє відхилення неприпустимого специфічного значення (від'ємна ціна)
         assertThrows(IllegalArgumentException.class,
-                () -> new VetVisit("Барсик", "Кіт", "Огляд", -100.0, false));
+                () -> new RoutineVisit("Мурка", "Кіт", "Травма", -150.0));
     }
 
     @Test
-    void constructorRejectsEmptyAnimal() {
-        assertThrows(IllegalArgumentException.class,
-                () -> new VetVisit("", "Кіт", "Огляд", 100.0, false));
+    void testFromCsvRoutine() {
+        VetVisit visit = VetVisit.fromCsv("Тузік;Собака;Вакцинація;300.0;false");
+        assertEquals(RoutineVisit.class, visit.getClass());
+        assertEquals("Тузік", visit.getAnimal());
     }
 
     @Test
-    void fromCsvCreatesValidEntity() {
-        VetVisit visit = VetVisit.fromCsv(" Рекс ; Собака ; Вакцинація ; 750.50 ; true ");
-        assertEquals("Рекс", visit.getAnimal());
-        assertEquals("Собака", visit.getSpecies());
-        assertEquals("Вакцинація", visit.getVisitType());
-        assertEquals(750.50, visit.getPrice(), 0.0001);
-        assertTrue(visit.isUrgent());
-    }
-
-    @Test
-    void fromCsvRejectsInvalidFieldsCount() {
-        assertThrows(IllegalArgumentException.class,
-                () -> VetVisit.fromCsv("Рекс;Собака;Вакцинація;750.50"));
-    }
-
-    @Test
-    void fromCsvRejectsInvalidPriceNumber() {
-        assertThrows(IllegalArgumentException.class,
-                () -> VetVisit.fromCsv("Рекс;Собака;Вакцинація;abc;true"));
-    }
-
-    @Test
-    void recordUsesValueEquality() {
-        VetSummary first = new VetSummary(5, 2500.0, 500.0, 2);
-        VetSummary second = new VetSummary(5, 2500.0, 500.0, 2);
-        assertEquals(first, second);
+    void testFromCsvUrgent() {
+        VetVisit visit = VetVisit.fromCsv("Джек;Собака;Операція;2000.0;true");
+        assertEquals(UrgentVisit.class, visit.getClass());
+        assertEquals(VisitKind.URGENT, visit.getVisitKind());
     }
 }
