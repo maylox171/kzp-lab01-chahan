@@ -11,14 +11,12 @@ from kzp_lab06.analysis import (
     make_summary,
     most_expensive,
     select_expensive,
-    total_revenue,
     unique_owners,
-    urgent_count,
 )
 from kzp_lab06.loader import load_records
 
 
-def _record(animal: str, species: str, owner: str, cost: float, urgent: bool = False) -> dict:
+def _record(animal: str, species: str, owner: str, cost: float) -> dict:
     """Створює типізований запис для тесту."""
     return {
         "animal": animal,
@@ -27,24 +25,20 @@ def _record(animal: str, species: str, owner: str, cost: float, urgent: bool = F
         "date": date(2026, 3, 1),
         "diagnosis": "Огляд",
         "cost": cost,
-        "visit_type": "Огляд",
-        "urgent": urgent,
     }
 
 
 def test_indicators_on_control_file(data_dir) -> None:
-    """Перевіряє показники ЛР1 на контрольному CSV (збігаються з Java-звітом)."""
-    records = load_records(data_dir / "vet_visits.csv")
+    """Перевіряє середню вартість і найдорожчий візит на контрольному CSV."""
+    records = load_records(data_dir / "input.csv")
 
-    assert total_revenue(records) == pytest.approx(5700.5)
     assert average_cost(records) == pytest.approx(950.0833, rel=1e-4)
-    assert urgent_count(records) == 3
     assert most_expensive(records)["animal"] == "Рекс"
 
 
 def test_selection_is_strictly_greater_than_threshold(data_dir) -> None:
     """Граничне значення 1000.0 не потрапляє у відбір cost > 1000.0."""
-    records = load_records(data_dir / "vet_visits.csv")
+    records = load_records(data_dir / "input.csv")
     selected = select_expensive(records)
 
     assert THRESHOLD == 1000.0
@@ -77,7 +71,6 @@ def test_empty_input_gives_zero_indicators() -> None:
 
     assert summary["count"] == 0
     assert summary["average_cost"] == 0.0
-    assert summary["total_revenue"] == 0
     assert summary["most_expensive"] is None
     assert summary["species_counts"] == {}
     assert summary["owners"] == set()
@@ -86,8 +79,8 @@ def test_empty_input_gives_zero_indicators() -> None:
 def test_make_summary_accepts_args_defaults_and_kwargs() -> None:
     """Перевіряє *metrics, типовий threshold і **labels."""
     records = [
-        _record("Рекс", "Собака", "Петренко, Олег", 2500.0, True),
-        _record("Ласка", "Тхір", "Коваль Андрій", 1200.0, True),
+        _record("Рекс", "Собака", "Петренко, Олег", 2500.0),
+        _record("Ласка", "Тхір", "Коваль Андрій", 1200.0),
         _record("Барсік", "Кіт", "Іваненко Олена", 450.5),
     ]
 

@@ -1,41 +1,55 @@
 package ua.lpnu.kzp;
 
-import java.time.LocalDate;
+import java.util.Objects;
 
 /**
- * Ургентний візит до ветклініки: до базової вартості додається надбавка 20 %.
+ * Ургентний візит до ветклініки.
  */
 public final class UrgentVisit extends VetVisit {
 
-    /** Коефіцієнт ургентної надбавки. */
-    public static final double URGENT_RATE = 1.20;
-
-    /**
-     * Створює ургентний візит.
-     *
-     * @param animal    кличка тварини
-     * @param species   вид тварини
-     * @param owner     власник
-     * @param date      дата візиту
-     * @param diagnosis діагноз
-     * @param visitType тип візиту
-     * @param price     базова вартість
-     * @throws IllegalArgumentException якщо значення порушують інваріанти моделі
-     */
-    public UrgentVisit(String animal, String species, String owner, LocalDate date,
-            String diagnosis, String visitType, double price) {
-        super(requireText(animal, "Кличка"), requireText(species, "Вид"), requireText(owner, "Власник"),
-                requireDate(date), requireText(diagnosis, "Діагноз"), requireText(visitType, "Тип візиту"),
-                requirePrice(price), VisitKind.URGENT);
+    public UrgentVisit(String animal, String species, String visitType, double price) {
+        super(
+            validateAnimal(animal),
+            validateSpecies(species),
+            validateVisitType(visitType),
+            validatePrice(price),
+            VisitKind.URGENT
+        );
     }
 
-    /**
-     * Повертає вартість ургентного візиту з надбавкою.
-     *
-     * @return базова вартість, помножена на {@link #URGENT_RATE}
-     */
+    private static String validateAnimal(String animal) {
+        String checked = Objects.requireNonNull(animal, "Кличка не може бути null");
+        if (checked.isBlank()) {
+            throw new IllegalArgumentException("Кличка не може бути порожньою");
+        }
+        return checked;
+    }
+
+    private static String validateSpecies(String species) {
+        String checked = Objects.requireNonNull(species, "Вид не може бути null");
+        if (checked.isBlank()) {
+            throw new IllegalArgumentException("Вид не може бути порожнім");
+        }
+        return checked;
+    }
+
+    private static String validateVisitType(String visitType) {
+        String checked = Objects.requireNonNull(visitType, "Тип візиту не може бути null");
+        if (checked.isBlank()) {
+            throw new IllegalArgumentException("Тип візиту не може бути порожнім");
+        }
+        return checked;
+    }
+
+    private static double validatePrice(double price) {
+        if (price < 0 || !Double.isFinite(price)) {
+            throw new IllegalArgumentException("ціна не може бути від'ємною");
+        }
+        return price;
+    }
+
     @Override
     public double calculateFinalCost() {
-        return getPrice() * URGENT_RATE;
+        return getPrice() * 1.20;
     }
 }

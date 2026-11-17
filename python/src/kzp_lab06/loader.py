@@ -7,11 +7,11 @@ from pathlib import Path
 
 from .errors import DataError
 
-TEXT_FIELDS = ("animal", "species", "owner", "diagnosis", "visit_type")
+TEXT_FIELDS = ("animal", "species", "owner", "diagnosis")
 """Текстові поля, які нормалізуються (strip) і не можуть бути порожніми."""
 
-REQUIRED_FIELDS = frozenset({*TEXT_FIELDS, "date", "cost", "urgent"})
-"""Обов'язкові стовпці CSV (порядок стовпців у файлі не важливий)."""
+REQUIRED_FIELDS = ("animal", "species", "owner", "date", "diagnosis", "cost")
+"""Поля CSV варіанта 21 (порядок заголовка; DictReader від порядку не залежить)."""
 
 Record = dict[str, object]
 
@@ -35,17 +35,9 @@ def parse_date(value: str, row_number: int) -> date:
         raise DataError(f"Рядок {row_number}: поле date має формат YYYY-MM-DD") from error
 
 
-def parse_urgent(value: str, row_number: int) -> bool:
-    """Перетворює текст true/false на bool."""
-    normalized = value.strip().lower()
-    if normalized not in {"true", "false"}:
-        raise DataError(f"Рядок {row_number}: поле urgent має бути true або false")
-    return normalized == "true"
-
-
 def parse_row(row: dict[str, str | None], row_number: int) -> Record:
     """Перевіряє один рядок DictReader і повертає типізований запис."""
-    missing = [name for name in sorted(REQUIRED_FIELDS) if row.get(name) is None]
+    missing = [name for name in REQUIRED_FIELDS if row.get(name) is None]
     if missing:
         raise DataError(f"Рядок {row_number}: відсутнє значення поля {missing[0]}")
     if None in row:
@@ -58,7 +50,6 @@ def parse_row(row: dict[str, str | None], row_number: int) -> Record:
         record[name] = text
     record["date"] = parse_date(str(row["date"]), row_number)
     record["cost"] = parse_cost(str(row["cost"]), row_number)
-    record["urgent"] = parse_urgent(str(row["urgent"]), row_number)
     return record
 
 
@@ -74,7 +65,7 @@ def load_records(path: Path) -> list[Record]:
             reader = csv.DictReader(source)
             if reader.fieldnames is None:
                 raise DataError(f"Файл {path} порожній: немає заголовка CSV")
-            missing = sorted(REQUIRED_FIELDS - set(reader.fieldnames))
+            missing = [name for name in REQUIRED_FIELDS if name not in reader.fieldnames]
             if missing:
                 raise DataError(f"Відсутні стовпці CSV: {', '.join(missing)}")
             records: list[Record] = []

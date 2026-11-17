@@ -19,10 +19,8 @@ def format_report(summary: dict[str, object]) -> str:
     owners: set[str] = summary["owners"]  # type: ignore[assignment]
     lines = [
         "Звіт ветклініки (варіант 21)",
-        f"Кількість коректних записів: {summary['count']}",
-        f"Загальний виторг: {summary['total_revenue']:.2f}",
+        f"Кількість візитів: {summary['count']}",
         f"Середня вартість візиту: {summary['average_cost']:.2f}",
-        f"Кількість ургентних візитів: {summary['urgent_count']}",
         f"Найдорожчий візит: {_describe(most) if most else 'немає'}",  # type: ignore[arg-type]
         f"Візити з вартістю > {summary['threshold']:.2f}: {len(selected)}",
     ]
