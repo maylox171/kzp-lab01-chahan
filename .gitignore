@@ -12,3 +12,14 @@ target/
 Thumbs.db
 # Локальні файли Visual Studio.
 .vs/
+
+# Python: віртуальні середовища, збірка, кеші та згенеровані звіти.
+.venv/
+.venv-*/
+dist/
+build/
+*.egg-info/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+python/reports/*.txt
