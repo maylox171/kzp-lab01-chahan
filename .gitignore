@@ -10,3 +10,5 @@ target/
 *.class
 .DS_Store
 Thumbs.db
+# Локальні файли Visual Studio.
+.vs/
