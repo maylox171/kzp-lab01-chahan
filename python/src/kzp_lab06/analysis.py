@@ -35,19 +35,9 @@ def unique_owners(records: Iterable[Record]) -> set[str]:
     return {str(record["owner"]) for record in records}
 
 
-def total_revenue(records: Iterable[Record]) -> float:
-    """Обчислює загальний виторг (суму вартостей)."""
-    return sum(cost_of(record) for record in records)
-
-
 def average_cost(records: list[Record]) -> float:
     """Обчислює середню вартість візиту; для порожнього входу — 0.0."""
-    return total_revenue(records) / len(records) if records else 0.0
-
-
-def urgent_count(records: Iterable[Record]) -> int:
-    """Рахує ургентні візити."""
-    return sum(1 for record in records if record["urgent"] is True)
+    return sum(cost_of(record) for record in records) / len(records) if records else 0.0
 
 
 def most_expensive(records: Iterable[Record]) -> Record | None:
@@ -65,14 +55,12 @@ def make_summary(
 
     *metrics — назви числових полів, суми яких рахуються для відібраних записів;
     threshold — типовий поріг відбору; **labels — підписи метрик у результаті.
-    Невідома метрика відхиляється ValueError; порожній відбір дає суму 0.0.
+    Невідома метрика відхиляється ValueError; порожній відбір дає суму 0.
     """
     selected = select_expensive(records, threshold)
     result: dict[str, object] = {
         "count": len(records),
-        "total_revenue": total_revenue(records),
         "average_cost": average_cost(records),
-        "urgent_count": urgent_count(records),
         "most_expensive": most_expensive(records),
         "threshold": threshold,
         "selected": selected,

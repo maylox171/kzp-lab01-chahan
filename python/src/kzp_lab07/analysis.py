@@ -47,11 +47,13 @@ def visits_by_species(visits: Sequence[VetVisit]) -> tuple[SpeciesStat, ...]:
 
 
 def make_summary(visits: Sequence[VetVisit], threshold: float = THRESHOLD) -> ReportSummary:
-    """Формує незмінний підсумок звіту."""
+    """Формує незмінний підсумок звіту.
+
+    urgent_count рахується через атрибут підтипу urgent (без isinstance).
+    """
     revenue = sum(visit.cost for visit in visits)
     return ReportSummary(
         count=len(visits),
-        total_revenue=revenue,
         average_cost=revenue / len(visits) if visits else 0.0,
         urgent_count=sum(1 for visit in visits if visit.urgent),
         total_final_cost=total_final_cost(visits),

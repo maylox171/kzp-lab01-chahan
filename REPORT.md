@@ -8,52 +8,47 @@
 
 ## 2. Мета роботи
 
-Завершено Java-продукт: замість прямого списку дані зберігаються в `Repository<T>`, помилки
+Завершено Java-продукт: записи варіанта зберігаються в `Repository<VetVisitRecord>`, помилки
 передаються власним `DataStorageException` з причиною, стовпці описані анотацією `@CsvColumn`,
-універсальний `CsvExporter` читає їх рефлексією та пише UTF-8 CSV, а `CsvParser` читає файл назад
+універсальний `CsvExporter` читає їх рефлексією та пише UTF-8 CSV, а `CsvParser` читає файл назад,
 і round-trip доводить, що об'єкти не змінюються.
 
 ## 3. Стан до і після
 
 | До (ЛР4) | Після (ЛР5) |
 |----------|-------------|
-| `List<VetVisit>` у `Main.processLines` | `Repository<VetVisit>` |
-| поля `animal;species;visitType;price;urgent` | об'єднана модель: + `owner`, `date` (`LocalDate`), `diagnosis` |
-| `split(";")` | `CsvParser` (машина станів, лапки, коми, multiline) |
-| `IllegalArgumentException` у `fromCsv` | `DataStorageException` з `cause` |
-| немає збереження | `CsvExporter` → `target/data/*.csv`, читання назад і round-trip |
+| `List<VetVisit>` у `Main.processLines`, дані лише в пам'яті | додано `Repository<VetVisitRecord>` і збереження в CSV |
+| немає класу варіанта ЛР5 | `VetVisitRecord`: animal, species, owner, date, diagnosis, cost |
+| `split(";")` у `VetVisit.fromCsv` | для CSV ЛР5 — `CsvParser` (машина станів) |
+| `IllegalArgumentException` | `DataStorageException` з `cause` для формату, значень і файлів |
+| немає експорту | `CsvExporter` → `target/data/vet_visits_export.csv`, читання назад і round-trip |
 
-Показники ЛР1 (середня вартість, загальний виторг, кількість ургентних візитів) і потокові запити
-`VetReport` збережено.
+Модель і звіт ЛР1–ЛР4 (`VetVisit`, `RoutineVisit`, `UrgentVisit`, `VetReport`; середня вартість,
+загальний виторг, кількість ургентних візитів) залишено без змін — файли збігаються з гілкою `lab04`.
 
 ## 4. Repository<T>
 
 `Repository<T>` — final-клас із `List<T> items`. Методи: `add(T)` (відхиляє `null`),
-`all()` — `List.copyOf` (незмінний знімок, подальші зміни сховища не впливають на знімок),
-`find(Predicate<? super T>)` — відбір через Stream API; `? super T` дозволяє передати умову для
-супертипу (наприклад `Predicate<Object>`), `size()`. Raw types не використовуються.
+`all()` — `List.copyOf` (незмінний знімок), `find(Predicate<? super T>)` — відбір через Stream API
+(`? super T` дозволяє передати умову для супертипу, наприклад `Predicate<Object>`), `size()`.
+У `Main` використовується `Repository<VetVisitRecord>`, наприклад
+`repository.find(record -> record.cost() > 1000.0)`. Raw types не використовуються.
 
 ## 5. Модель даних
 
-Клас варіанта — ієрархія `VetVisit` (sealed, abstract) → `RoutineVisit`, `UrgentVisit`
-(у методичці клас називається `VetVisitRecord`; у проєкті плоский `VetVisitRecord` використано
-для машинного CSV, а поліморфну модель ЛР3 збережено).
+Клас варіанта — `VetVisitRecord` (final, усі поля `final`):
 
 | Поле | Тип | CSV-стовпець | Інваріант |
 |------|-----|--------------|-----------|
 | animal | String | тварина | непорожнє |
 | species | String | вид | непорожнє |
 | owner | String | власник | непорожнє |
-| date | LocalDate | дата | не null, ISO `YYYY-MM-DD` |
+| date | LocalDate | дата | задана, ISO `YYYY-MM-DD` |
 | diagnosis | String | діагноз | непорожнє |
-| visitType | String | тип візиту | непорожнє |
-| price | double | вартість | скінченна, ≥ 0 |
-| visitKind | VisitKind (enum) | категорія | ROUTINE / URGENT |
+| cost | double | вартість | скінченна, ≥ 0 |
 
-Валідація виконується статичними методами `requireText/requireDate/requirePrice` в аргументах
-`super(...)` фінальних підтипів (конструктор базового класу не кидає винятків — вимога SpotBugs
-`CT_CONSTRUCTOR_THROW`). `equals/hashCode` — за класом і всіма полями (поля `final`).
-Ключ round-trip: **owner + date** (`VetVisit.key()`).
+Порушення інваріанту — `IllegalArgumentException` у конструкторі. `equals/hashCode` — за всіма
+полями. Ключ round-trip — **owner + date** (`key()` → `власник|дата`).
 
 ## 6. @CsvColumn
 
@@ -66,96 +61,96 @@ public @interface CsvColumn {
 ```
 
 `RUNTIME` — анотація доступна рефлексії під час виконання; `FIELD` — тільки на полях.
-Анотація задає лише назву; порядок визначає сортування Java-імен полів.
+Анотація задає назву; порядок визначає сортування Java-імен полів:
+`animal, cost, date, diagnosis, owner, species`.
 
 ## 7. Рефлексивний експортер
 
 `CsvExporter.write(Path, Class<T>, List<? extends T>)`: проходить клас і суперкласи до `Object`
 (`getDeclaredFields`), залишає поля з `@CsvColumn`, сортує за `Field::getName`, перевіряє
 `trySetAccessible()`, будує заголовок і рядки через `field.get(record)` та `escape`.
-Експортер не містить назв доменних класів: той самий код пише `VetVisit` (українські заголовки),
-`VetVisitRecord` (англомовні) і тестовий клас `Book extends Base`. Клас без анотованих полів →
-`DataStorageException`. Запис — `Files.writeString(..., UTF_8, CREATE, TRUNCATE_EXISTING, WRITE)`.
+Експортер не містить назв доменних класів: той самий код у тестах пише сторонній клас
+`Book extends Base` (з полем суперкласу). Клас без анотованих полів → `DataStorageException`.
+Запис — `Files.writeString(..., UTF_8, CREATE, TRUNCATE_EXISTING, WRITE)`.
 
 ## 8. Формат CSV
 
 ```text
-тварина,дата,діагноз,власник,вартість,вид,категорія,тип візиту
-Барсік,2026-03-01,Плановий огляд,Іваненко Олена,450.5,Кіт,ROUTINE,Огляд
-Рекс,2026-03-02,"Перелом лапи, ""складний""","Петренко, Олег",2500.0,Собака,URGENT,Хірургія
-Кеша,2026-03-03,Профілактика,Іваненко Олена,200.0,Папуга,ROUTINE,Консультація
-Джек,2026-03-04,Отруєння,Коваль Андрій,1000.0,Собака,URGENT,Невідкладна допомога
-Мурчик,2026-03-05,Вакцинація від сказу,Бондар Ірина,350.0,Кіт,ROUTINE,Вакцинація
-Ласка,2026-03-06,Травма лапи,Коваль Андрій,1200.0,Тхір,URGENT,Травма
+тварина,вартість,дата,діагноз,власник,вид
+Барсік,450.5,2026-03-01,Плановий огляд,Іваненко Олена,Кіт
+Рекс,2500.0,2026-03-02,"Перелом лапи, ""складний""","Петренко, Олег",Собака
+Кеша,200.0,2026-03-03,Профілактика,Іваненко Олена,Папуга
+Джек,1000.0,2026-03-04,Отруєння,Коваль Андрій,Собака
+Мурчик,350.0,2026-03-05,Вакцинація від сказу,Бондар Ірина,Кіт
+Ласка,1200.0,2026-03-06,Травма лапи,Коваль Андрій,Тхір
 ```
 
+Екранований рядок — запис Рекса: кома у власнику й діагнозі, подвоєні лапки в діагнозі.
 Кодування UTF-8 задається і під час запису, і під час читання. Роздільник записів —
-`System.lineSeparator()`; парсер приймає і `\n`, і `\r\n`, тому файл однаково читається на всіх ОС
+`System.lineSeparator()`; парсер приймає `\n` і `\r\n`, тому файл однаково читається на всіх ОС
 (перевірено запуском JAR у CI на Ubuntu, Windows, macOS).
-Машинний файл для Python (`target/data/vet_visits.csv`, копія в репозиторії — `data/vet_visits.csv`):
-`animal,cost,date,diagnosis,owner,species,urgent,visit_type`.
+Додаткові файли: `data/vet_visits_bad.csv` (хибний рядок), `data/vet_visits_empty.csv` (порожній CSV).
 
 ## 9. Імпорт і round-trip
 
 `Files.readString(path, UTF_8)` → `CsvParser.parseDocument` (список записів, а не фізичних рядків) →
-пропуск заголовка → `VetVisit.fromFields` (вибір підтипу за `VisitKind`) → `original.equals(restored)`.
-Результат запуску JAR:
+пропуск заголовка → `VetVisitRecord.fromFields` → `original.equals(restored)` і перевірка кожного ключа
+`owner + date`. Результат запуску JAR:
 
 ```text
+Записів у сховищі: 6
 CSV-записів із заголовком: 7
 Відновлених об'єктів: 6
+Заголовок: тварина,вартість,дата,діагноз,власник,вид
 Екранування коми або лапок: true
 Round-trip: true
-Ключ round-trip (власник + дата) Іваненко Олена / 2026-03-01: відновлено
+  ключ Петренко, Олег / 2026-03-02: відновлено
 ```
 
 ## 10. Помилки
 
 | Рівень | Приклад | Повідомлення `DataStorageException` | cause |
 |--------|---------|-------------------------------------|-------|
-| Модель | ціна −150 | «ціна не може бути від'ємною» | `IllegalArgumentException` |
-| Формат | 3 поля замість 8 | «очікується 8 полів, знайдено 3» | — |
-| Значення | `дорого` у ціні | «поле ціни має помилковий формат» | `NumberFormatException` |
+| Модель | вартість −150 | «вартість не може бути від'ємною» | `IllegalArgumentException` |
+| Модель | порожній власник | «Тварина, вид, власник і діагноз не можуть бути порожніми» | `IllegalArgumentException` |
+| Формат | 3 поля замість 6 | «очікується 6 полів, знайдено 3» | — |
+| Значення | `дорого` у вартості | «поле вартості має помилковий формат» | `NumberFormatException` |
 | Значення | `2026-13-40` | «поле дати має помилковий формат» | `DateTimeParseException` |
-| Значення | `SOMETIMES` у категорії | «невідома категорія візиту» | `IllegalArgumentException` |
-| Значення | `так` в urgent | «поле urgent має бути true або false» | — |
 | Формат | незакриті лапки | «Незакриті CSV-лапки» | — |
-| Файл | шлях є каталогом / файл відсутній | «Не вдалося записати/прочитати CSV» | `IOException` |
+| Файл | запис у каталог / файл відсутній | «Не вдалося записати/прочитати CSV» | `IOException` |
 | Рефлексія | клас без `@CsvColumn` | «Клас … не має CSV-полів» | — |
+| Файл даних | хибний запис у `vet_visits_bad.csv` | «Запис 3 файлу …: поле вартості …» | `DataStorageException` |
 
-Порожніх `catch` немає: помилки рядків вхідного файлу потрапляють у звіт із номером рядка,
-інші передаються вище з контекстом.
+Порожніх `catch` немає: кожна помилка передається з контекстом (номер запису, шлях) і причиною.
 
 ## 11. Тестування
 
-48 тестів JUnit 5, усі зелені (18 попередніх тестів адаптовано під новий формат рядка без зміни
-суті перевірок, плюс 30 нових):
+46 тестів JUnit 5, усі зелені: 18 попередніх тестів ЛР1–ЛР4 без змін + 28 нових.
 
 | Клас | Тестів | Що перевіряє |
 |------|--------|--------------|
-| MainTest | 6 | звіт ЛР1, від'ємна ціна, кількість полів, хибне число, порожній вхід, середня/ургентні |
-| VetReportTest | 8 | потокові запити ЛР4 |
-| VetVisitTest | 7 | поліморфізм, equals/hashCode, валідація, розбір вхідного рядка з лапками |
+| MainTest | 5 | звіт ЛР1 (без змін) |
+| VetReportTest | 8 | потокові запити ЛР4 (без змін) |
+| VetVisitTest | 5 | поліморфізм, equals/hashCode, валідація (без змін) |
 | RepositoryTest | 3 | generic-сховище, незмінний знімок, `? super T`, null |
 | CsvParserTest | 5 | лапки, подвоєні лапки, multiline, `\r\n`, `;`, порожній документ, хибні лапки |
 | CsvExporterTest | 8 | RUNTIME/FIELD, заголовок, довільний клас і суперклас, екранування, порожній список, клас без полів, файлова помилка з `IOException`, TRUNCATE |
-| RoundTripTest | 11 | round-trip, multiline, порожній CSV, кількість полів, число/enum/дата з cause, boolean, модель, відсутній файл, `Main.exportAndVerify` |
+| RoundTripTest | 12 | round-trip, multiline, equals/hashCode, порожній CSV, кількість полів, число/дата з cause, модель, хибний запис у файлі, відсутній файл, `Main.exportAndVerify`, файли `data/` |
 
-На вхідних даних: 11 фізичних рядків `input.csv` → 6 коректних візитів і 5 помилок;
-експорт — 7 CSV-записів (заголовок + 6), відновлено 6 об'єктів.
+На даних: `vet_visits.csv` — 7 фізичних рядків (заголовок + 6), 7 CSV-записів, 6 відновлених об'єктів.
 
 ## 12. Інфраструктура
 
 ```text
-mvnw.cmd -B test       → Tests run: 48, Failures: 0
+mvnw.cmd -B test       → Tests run: 46, Failures: 0
 mvnw.cmd -B verify     → BUILD SUCCESS (SpotBugs: 0 bugs)
 mvnw.cmd -B package    → target/lab01-1.5.0.jar
 java -jar target/lab01-1.5.0.jar
 ```
 
 CI: `verify` → `package` → запуск JAR з перевіркою `Round-trip: true` → артефакти `jar-<os>-<N>`
-та `csv-<os>-<N>` на Ubuntu, Windows, macOS. Версія pom — 1.5.0, Git-тег — `v5.0.0`.
-`target/`, `.vs/`, IDE-файли виключено в `.gitignore`.
+та `csv-<os>-<N>` на Ubuntu, Windows, macOS (actions: checkout@v5, setup-java@v5, upload-artifact@v7).
+Версія pom — 1.5.0, Git-тег — `v5.0.0`. `target/`, `.vs/`, IDE-файли виключено в `.gitignore`.
 
 ## 13. GitHub Issues і Pull Request
 
@@ -164,30 +159,28 @@ CI: `verify` → `package` → запуск JAR з перевіркою `Round-t
 | #1 | `Repository<T>` | RepositoryTest |
 | #2 | `@CsvColumn` | CsvExporterTest.annotationIsAvailableAtRuntimeOnFields |
 | #3 | `CsvExporter` | CsvExporterTest |
-| #4 | `CsvParser`, `fromFields`, round-trip | CsvParserTest, RoundTripTest |
+| #4 | `CsvParser`, `VetVisitRecord.fromFields`, round-trip | CsvParserTest, RoundTripTest |
 | #5 | `DataStorageException` | RoundTripTest (getCause) |
-| #6 | тести | `mvnw verify` — 48 тестів |
+| #6 | тести | `mvnw verify` — 46 тестів |
 | #7 | README, REPORT, CI, версія | зелений CI на 3 ОС |
 
 Pull Request `lab05 → lab04` містить `Closes #1 … #7`, приклад CSV і результат round-trip.
 
 ## 14. Порівняння стану
 
-Звіт ЛР1–ЛР4 формується тим самим кодом (`Main.formatReport`) з тими самими рядками:
-«Кількість коректних записів», «Загальний виторг», «Середня вартість візиту»,
-«Кількість ургентних візитів», «Помилок». Старі хибні рядки (від'ємна ціна, 3 поля, «дорого»)
-збережено в `input.csv`, вони дають ті самі повідомлення (очікувана кількість полів тепер 8).
-`VetReport` (ЛР4) не змінювався, його 8 тестів проходять.
+Звіт ЛР1–ЛР4 друкується першим розділом виводу JAR і збігається з попереднім (`out/report.txt`):
+3 коректні записи, виторг 3150.50, середня 1050.17, 1 ургентний, 3 помилки. Файли `VetVisit`,
+`RoutineVisit`, `UrgentVisit`, `data/input.csv` та тести ЛР1–ЛР4 не змінювалися.
 
 ## 15. Академічна доброчесність
 
 Використано ШІ-асистента Claude Code (Anthropic) у ролях розробника, валідатора й DevOps:
 запити — реалізація компонентів за Issues, перевірка екранування й крайових випадків,
-налаштування CI. Прийнято: структуру `Repository`, `CsvExporter`, `CsvParser` за методичкою;
-перенесення валідації в аргументи `super(...)` після зауваження SpotBugs. Відхилено: збереження
-легасі 5-польового формату (ускладнює модель). Виправлено: очікуваний порядок стовпців у тесті.
-Власний внесок: модель ЛР1–ЛР4, вибір об'єднаної моделі даних, перевірка й пояснення кожного
-поля та винятку.
+налаштування CI. Прийнято: структуру `Repository`, `CsvExporter`, `CsvParser` за методичкою.
+Відхилено: розширення старої моделі `VetVisit` полями варіанта — натомість окремий клас
+`VetVisitRecord` точно за таблицею варіанта 21. Виправлено: очікуваний порядок стовпців у тесті,
+версії GitHub Actions (прибрано попередження про Node.js 20).
+Власний внесок: модель ЛР1–ЛР4, перевірка й пояснення кожного поля та винятку.
 
 ## 16. Відповіді на контрольні питання
 
@@ -215,6 +208,6 @@ Pull Request `lab05 → lab04` містить `Closes #1 … #7`, приклад
 ## 17. Висновки
 
 Java-продукт отримав типобезпечне сховище, власний виняток із причиною, метадані стовпців і
-універсальний рефлексивний експортер. Round-trip підтверджено тестами та запуском JAR.
-Файл `vet_visits.csv` з англомовними стовпцями (`animal,cost,date,diagnosis,owner,species,urgent,visit_type`)
-стає вхідними даними для Python-блоку (ЛР6–ЛР7).
+універсальний рефлексивний експортер. Round-trip `VetVisitRecord` підтверджено тестами та запуском JAR.
+UTF-8 CSV із полями `animal, species, owner, date, diagnosis, cost` стає вхідним форматом
+для Python-блоку (ЛР6–ЛР7), де ті самі поля читаються з англомовним машинним заголовком.

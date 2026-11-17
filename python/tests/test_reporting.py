@@ -7,10 +7,8 @@ from kzp_lab06.loader import load_records
 from kzp_lab06.reporting import format_report, write_report
 
 EXPECTED_REPORT = """Звіт ветклініки (варіант 21)
-Кількість коректних записів: 6
-Загальний виторг: 5700.50
+Кількість візитів: 6
 Середня вартість візиту: 950.08
-Кількість ургентних візитів: 3
 Найдорожчий візит: Рекс (Собака, власник Петренко, Олег, 2026-03-02) — 2500.00
 Візити з вартістю > 1000.00: 2
   - Рекс (Собака, власник Петренко, Олег, 2026-03-02) — 2500.00
@@ -26,14 +24,14 @@ EXPECTED_REPORT = """Звіт ветклініки (варіант 21)
 
 def test_full_report_text(data_dir) -> None:
     """Звіт на контрольному CSV збігається з очікуваним текстом."""
-    summary = make_summary(load_records(data_dir / "vet_visits.csv"))
+    summary = make_summary(load_records(data_dir / "input.csv"))
     assert format_report(summary) == EXPECTED_REPORT
 
 
 def test_report_for_empty_input() -> None:
     """Порожній вхід дає коректний звіт без ділення на нуль."""
     text = format_report(make_summary([]))
-    assert "Кількість коректних записів: 0" in text
+    assert "Кількість візитів: 0" in text
     assert "Середня вартість візиту: 0.00" in text
     assert "Найдорожчий візит: немає" in text
     assert "(немає записів)" in text

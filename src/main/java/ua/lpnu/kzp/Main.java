@@ -10,144 +10,110 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 
 /**
- * Точка входу застосунку ветклініки: читає вхідний файл, будує звіт,
- * експортує дані у CSV та перевіряє round-trip.
+ * Точка входу застосунку ветклініки: звіт лабораторних робіт № 1–4 та
+ * збереження записів {@link VetVisitRecord} у CSV з перевіркою round-trip (ЛР5).
  */
 public final class Main {
 
-    /** Типовий шлях до вхідного файлу. */
+    /** Вхідний файл звіту ЛР1–ЛР4 (роздільник {@code ;}). */
     public static final Path DEFAULT_INPUT = Path.of("data", "input.csv");
 
-    /** Типовий каталог для згенерованих CSV-файлів. */
+    /** Вхідний CSV записів візитів для ЛР5. */
+    public static final Path DEFAULT_RECORDS = Path.of("data", "vet_visits.csv");
+
+    /** CSV із хибним рядком для демонстрації обробки помилки. */
+    public static final Path DEFAULT_BAD_RECORDS = Path.of("data", "vet_visits_bad.csv");
+
+    /** Каталог для згенерованих CSV-файлів. */
     public static final Path DEFAULT_OUTPUT_DIR = Path.of("target", "data");
 
-    /** Назва CSV-експорту предметної моделі з українськими заголовками. */
+    /** Назва файлу CSV-експорту. */
     public static final String EXPORT_FILE = "vet_visits_export.csv";
-
-    /** Назва машинного CSV для Python-блоку. */
-    public static final String MACHINE_FILE = "vet_visits.csv";
 
     private Main() {
         // Забороняє створення екземплярів класу точки входу
     }
 
     /**
-     * Завантажує коректні рядки вхідного файлу у сховище, а помилки — у список.
-     *
-     * @param lines      рядки вхідного файлу
-     * @param repository сховище для коректних візитів
-     * @param errors     список для повідомлень про помилки
-     */
-    public static void loadInto(List<String> lines, Repository<VetVisit> repository,
-            List<String> errors) {
-        Objects.requireNonNull(lines, "Рядки не можуть бути null");
-        for (int index = 0; index < lines.size(); index++) {
-            String line = lines.get(index);
-            if (line.isBlank()) {
-                continue;
-            }
-            try {
-                repository.add(VetVisit.fromInputLine(line));
-            } catch (DataStorageException e) {
-                // Хибний рядок не зупиняє обробку: повідомлення з номером рядка потрапляє у звіт
-                errors.add("Рядок %d: %s".formatted(index + 1, e.getMessage()));
-            }
-        }
-    }
-
-    /**
-     * Обробляє список вхідних рядків, створює об'єкти візитів,
+     * Обробляє список вхідних рядків CSV, створює об'єкти візитів,
      * збирає статистику та формує звіт для тестів і консолі.
      *
      * @param lines рядки вхідного файлу
      * @return текст звіту
      */
     public static String processLines(List<String> lines) {
-        Repository<VetVisit> repository = new Repository<>();
+        List<VetVisit> visits = new ArrayList<>();
         List<String> errorMessages = new ArrayList<>();
-        loadInto(lines, repository, errorMessages);
-        return formatReport(repository.all(), errorMessages);
-    }
 
-    /**
-     * Формує звіт з показниками лабораторної роботи № 1.
-     *
-     * @param visits коректні візити
-     * @param errors повідомлення про помилки
-     * @return текст звіту
-     */
-    public static String formatReport(List<VetVisit> visits, List<String> errors) {
+        for (int index = 0; index < lines.size(); index++) {
+            String line = lines.get(index);
+            if (line.isBlank()) {
+                continue;
+            }
+            try {
+                VetVisit visit = VetVisit.fromCsv(line);
+                visits.add(visit);
+            } catch (IllegalArgumentException e) {
+                // Зберігаємо текст помилки для звіту
+                errorMessages.add("Рядок %d: %s".formatted(index + 1, e.getMessage()));
+            }
+        }
+
         double totalPrice = 0.0;
         int urgentCount = 0;
+
         for (VetVisit visit : visits) {
             totalPrice += visit.getPrice();
             if (visit.isUrgent()) {
                 urgentCount++;
             }
         }
+
         double averagePrice = visits.isEmpty() ? 0.0 : totalPrice / visits.size();
 
+        // Формуємо загальний рядок звіту, який перевіряє MainTest
         StringBuilder reportBuilder = new StringBuilder();
         reportBuilder.append(String.format(Locale.ROOT, "Кількість коректних записів: %d%n", visits.size()));
         reportBuilder.append(String.format(Locale.ROOT, "Загальний виторг: %.2f%n", totalPrice));
         reportBuilder.append(String.format(Locale.ROOT, "Середня вартість візиту: %.2f%n", averagePrice));
         reportBuilder.append(String.format(Locale.ROOT, "Кількість ургентних візитів: %d%n", urgentCount));
-        reportBuilder.append(String.format(Locale.ROOT, "Помилок: %d%n", errors.size()));
-        for (String err : errors) {
+        reportBuilder.append(String.format(Locale.ROOT, "Помилок: %d%n", errorMessages.size()));
+
+        for (String err : errorMessages) {
             reportBuilder.append(err).append(System.lineSeparator());
         }
+
         return reportBuilder.toString();
     }
 
     /**
-     * Читає CSV-експорт назад у список візитів.
+     * Завантажує записи з CSV у параметризоване сховище.
      *
-     * @param path шлях до CSV-файлу експорту
-     * @return відновлені візити в порядку рядків файлу
-     * @throws DataStorageException якщо файл неможливо прочитати або рядок хибний
+     * @param path шлях до CSV-файлу з заголовком
+     * @return сховище із записами у порядку файлу
+     * @throws DataStorageException якщо файл неможливо прочитати або запис хибний
      */
-    public static List<VetVisit> readExport(Path path) throws DataStorageException {
-        String csv;
-        try {
-            csv = Files.readString(path, StandardCharsets.UTF_8);
-        } catch (IOException exception) {
-            throw new DataStorageException("Не вдалося прочитати CSV: %s".formatted(path), exception);
-        }
-        List<List<String>> rows = CsvParser.parseDocument(csv);
-        List<VetVisit> restored = new ArrayList<>();
-        // Перший запис — заголовок, тому відновлення починається з другого
-        for (int index = 1; index < rows.size(); index++) {
-            try {
-                restored.add(VetVisit.fromFields(rows.get(index)));
-            } catch (DataStorageException exception) {
-                throw new DataStorageException(
-                        "Запис %d файлу %s: %s".formatted(index + 1, path, exception.getMessage()),
-                        exception);
-            }
-        }
-        return List.copyOf(restored);
+    public static Repository<VetVisitRecord> loadRepository(Path path) throws DataStorageException {
+        Repository<VetVisitRecord> repository = new Repository<>();
+        VetVisitRecord.readCsv(path).forEach(repository::add);
+        return repository;
     }
 
     /**
      * Експортує сховище у CSV, читає файл назад і формує звіт про round-trip.
      *
-     * @param repository сховище візитів
-     * @param outputDir  каталог для CSV-файлів
+     * @param repository сховище записів
+     * @param outputDir  каталог для CSV-файлу
      * @return текст звіту round-trip
      * @throws DataStorageException якщо експорт або імпорт неможливий
      */
-    public static String exportAndVerify(Repository<VetVisit> repository, Path outputDir)
+    public static String exportAndVerify(Repository<VetVisitRecord> repository, Path outputDir)
             throws DataStorageException {
         Path exportPath = outputDir.resolve(EXPORT_FILE);
-        Path machinePath = outputDir.resolve(MACHINE_FILE);
-        List<VetVisit> original = repository.all();
-
-        CsvExporter.write(exportPath, VetVisit.class, original);
-        CsvExporter.write(machinePath, VetVisitRecord.class,
-                original.stream().map(VetVisitRecord::new).toList());
+        List<VetVisitRecord> original = repository.all();
+        CsvExporter.write(exportPath, VetVisitRecord.class, original);
 
         String csv;
         try {
@@ -156,7 +122,7 @@ public final class Main {
             throw new DataStorageException("Не вдалося прочитати CSV: %s".formatted(exportPath), exception);
         }
         List<List<String>> rows = CsvParser.parseDocument(csv);
-        List<VetVisit> restored = readExport(exportPath);
+        List<VetVisitRecord> restored = VetVisitRecord.readCsv(exportPath);
 
         StringBuilder text = new StringBuilder();
         text.append(String.format(Locale.ROOT, "CSV-експорт: %s%n", exportPath));
@@ -165,49 +131,64 @@ public final class Main {
         text.append(String.format(Locale.ROOT, "Відновлених об'єктів: %d%n", restored.size()));
         text.append(String.format(Locale.ROOT, "Заголовок: %s%n",
                 rows.isEmpty() ? "" : String.join(",", rows.get(0))));
-        text.append(String.format(Locale.ROOT, "Екранування коми або лапок: %s%n",
-                csv.contains("\"")));
+        text.append(String.format(Locale.ROOT, "Екранування коми або лапок: %s%n", csv.contains("\"")));
         text.append(String.format(Locale.ROOT, "Round-trip: %s%n", original.equals(restored)));
-        if (!original.isEmpty()) {
-            VetVisit first = original.get(0);
-            boolean keyFound = restored.stream().anyMatch(v -> v.key().equals(first.key()));
-            text.append(String.format(Locale.ROOT, "Ключ round-trip (власник + дата) %s / %s: %s%n",
-                    first.getOwner(), first.getDate(), keyFound ? "відновлено" : "втрачено"));
+        for (VetVisitRecord record : original) {
+            boolean found = restored.stream().anyMatch(r -> r.key().equals(record.key()) && r.equals(record));
+            text.append(String.format(Locale.ROOT, "  ключ %s / %s: %s%n",
+                    record.owner(), record.date(), found ? "відновлено" : "втрачено"));
         }
-        text.append(String.format(Locale.ROOT, "Машинний CSV для Python: %s%n", machinePath));
         return text.toString();
     }
 
     /**
      * Запускає застосунок.
      *
-     * @param args необов'язкові аргументи: шлях до вхідного файлу та каталог для CSV
+     * @param args необов'язкові аргументи: вхідний файл ЛР1–ЛР4, CSV записів, каталог виводу
      */
     public static void main(String[] args) {
         System.setOut(new PrintStream(new FileOutputStream(FileDescriptor.out), true, StandardCharsets.UTF_8));
         System.setErr(new PrintStream(new FileOutputStream(FileDescriptor.err), true, StandardCharsets.UTF_8));
 
         Path inputPath = args.length > 0 ? Path.of(args[0]) : DEFAULT_INPUT;
-        Path outputDir = args.length > 1 ? Path.of(args[1]) : DEFAULT_OUTPUT_DIR;
-        if (!Files.exists(inputPath)) {
-            System.err.println("Файл " + inputPath + " не знайдено!");
-            return;
-        }
+        Path recordsPath = args.length > 1 ? Path.of(args[1]) : DEFAULT_RECORDS;
+        Path outputDir = args.length > 2 ? Path.of(args[2]) : DEFAULT_OUTPUT_DIR;
 
+        System.out.println("=== Звіт ЛР1–ЛР4 (" + inputPath + ") ===");
         try {
             List<String> lines = Files.readAllLines(inputPath, StandardCharsets.UTF_8);
-            Repository<VetVisit> repository = new Repository<>();
-            List<String> errors = new ArrayList<>();
-            loadInto(lines, repository, errors);
-            System.out.println(formatReport(repository.all(), errors));
-            System.out.print(exportAndVerify(repository, outputDir));
+            System.out.println(processLines(lines));
         } catch (IOException exception) {
             System.err.println("Помилка читання файлу: " + exception.getMessage());
+        }
+
+        System.out.println("=== ЛР5: Repository<VetVisitRecord> і CSV round-trip (" + recordsPath + ") ===");
+        try {
+            Repository<VetVisitRecord> repository = loadRepository(recordsPath);
+            System.out.print(exportAndVerify(repository, outputDir));
+            System.out.printf(Locale.ROOT, "Візитів дорожче 1000: %d%n",
+                    repository.find(record -> record.cost() > 1000.0).size());
         } catch (DataStorageException exception) {
-            System.err.println("Помилка зберігання даних: " + exception.getMessage());
-            if (exception.getCause() != null) {
-                System.err.println("Причина: " + exception.getCause());
+            printError(exception);
+        }
+
+        if (args.length <= 1 && Files.exists(DEFAULT_BAD_RECORDS)) {
+            System.out.println();
+            System.out.println("=== Обробка хибного CSV (" + DEFAULT_BAD_RECORDS + ") ===");
+            try {
+                loadRepository(DEFAULT_BAD_RECORDS);
+            } catch (DataStorageException exception) {
+                System.out.println("Помилка: " + exception.getMessage());
+                System.out.println("Причина: " + exception.getCause());
             }
+        }
+    }
+
+    /* Друкує помилку зберігання разом із першопричиною. */
+    private static void printError(DataStorageException exception) {
+        System.err.println("Помилка зберігання даних: " + exception.getMessage());
+        if (exception.getCause() != null) {
+            System.err.println("Причина: " + exception.getCause());
         }
     }
 }

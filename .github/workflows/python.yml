@@ -49,14 +49,14 @@ jobs:
           python -m venv .venv-wheel
           if [ -d .venv-wheel/Scripts ]; then PY=.venv-wheel/Scripts/python; else PY=.venv-wheel/bin/python; fi
           "$PY" -m pip install --no-deps dist/*.whl
-          "$PY" -m kzp_lab06.cli data/vet_visits.csv reports/wheel-summary.txt
+          "$PY" -m kzp_lab06.cli data/input.csv reports/wheel-summary.txt
           set +e
           "$PY" -m kzp_lab06.cli data/broken.csv reports/wheel-broken.txt
           code=$?
           set -e
           echo "Код завершення для пошкодженого CSV: $code"
           test "$code" -eq 2
-          "$PY" -m kzp_lab07.cli data/vet_visits.csv reports/wheel-summary-lab07.txt
+          "$PY" -m kzp_lab07.cli data/input.csv reports/wheel-summary-lab07.txt
           set +e
           "$PY" -m kzp_lab07.cli data/broken.csv reports/wheel-broken-lab07.txt
           code=$?

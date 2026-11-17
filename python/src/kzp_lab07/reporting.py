@@ -17,10 +17,8 @@ def format_base_report(summary: ReportSummary) -> str:
     most = summary.most_expensive
     lines = [
         "Звіт ветклініки (варіант 21)",
-        f"Кількість коректних записів: {summary.count}",
-        f"Загальний виторг: {summary.total_revenue:.2f}",
+        f"Кількість візитів: {summary.count}",
         f"Середня вартість візиту: {summary.average_cost:.2f}",
-        f"Кількість ургентних візитів: {summary.urgent_count}",
         f"Найдорожчий візит: {_describe(most) if most else 'немає'}",
         f"Візити з вартістю > {summary.threshold:.2f}: {len(summary.selected)}",
     ]
@@ -37,6 +35,7 @@ def format_report(summary: ReportSummary) -> str:
     """Формує повний детермінований звіт ЛР7."""
     lines = [
         "",
+        f"Ургентних візитів (за діагнозом): {summary.urgent_count}",
         f"Підсумкова вартість з ургентною надбавкою (×{URGENT_RATE:.2f}): "
         f"{summary.total_final_cost:.2f}",
         "Візити за видами тварин (кількість / підсумкова вартість):",

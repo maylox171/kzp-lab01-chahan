@@ -47,7 +47,6 @@ class VetVisit:
         visit_date: dt.date,
         diagnosis: str,
         cost: float,
-        visit_type: str,
     ) -> None:
         """Створює візит; кожне значення проходить через setter-валідацію."""
         self.animal = animal
@@ -56,7 +55,6 @@ class VetVisit:
         self.date = visit_date
         self.diagnosis = diagnosis
         self.cost = cost
-        self.visit_type = visit_type
 
     @property
     def animal(self) -> str:
@@ -97,16 +95,6 @@ class VetVisit:
     def diagnosis(self, value: str) -> None:
         """Встановлює непорожній діагноз."""
         self._diagnosis = _require_text(value, "diagnosis")
-
-    @property
-    def visit_type(self) -> str:
-        """Повертає тип візиту."""
-        return self._visit_type
-
-    @visit_type.setter
-    def visit_type(self, value: str) -> None:
-        """Встановлює непорожній тип візиту."""
-        self._visit_type = _require_text(value, "visit_type")
 
     @property
     def date(self) -> dt.date:
@@ -154,7 +142,6 @@ class VetVisit:
             self.date,
             self.diagnosis,
             self.cost,
-            self.visit_type,
         )
 
     def __str__(self) -> str:
@@ -167,7 +154,7 @@ class VetVisit:
         return (
             f"{type(self).__name__}(animal={self.animal!r}, species={self.species!r}, "
             f"owner={self.owner!r}, visit_date={self.date!r}, diagnosis={self.diagnosis!r}, "
-            f"cost={self.cost!r}, visit_type={self.visit_type!r})"
+            f"cost={self.cost!r})"
         )
 
     def __eq__(self, other: object) -> bool:
@@ -214,7 +201,6 @@ class ReportSummary:
     """Незмінний підсумок звіту ветклініки."""
 
     count: int
-    total_revenue: float
     average_cost: float
     urgent_count: int
     total_final_cost: float

@@ -9,8 +9,8 @@ from kzp_lab06.cli import EXIT_DATA_ERROR, EXIT_OK, main
 def test_cli_success_writes_report(data_dir, tmp_path) -> None:
     """Успішний сценарій: код 0 і файл звіту."""
     output = tmp_path / "summary.txt"
-    assert main([str(data_dir / "vet_visits.csv"), str(output)]) == EXIT_OK
-    assert "Кількість коректних записів: 6" in output.read_text(encoding="utf-8")
+    assert main([str(data_dir / "input.csv"), str(output)]) == EXIT_OK
+    assert "Кількість візитів: 6" in output.read_text(encoding="utf-8")
 
 
 def test_cli_data_error_returns_2(data_dir, tmp_path, capsys) -> None:
@@ -24,7 +24,7 @@ def test_cli_data_error_returns_2(data_dir, tmp_path, capsys) -> None:
 def test_cli_threshold_option(data_dir, tmp_path) -> None:
     """Параметр --threshold змінює відбір (порожній результат для 5000)."""
     output = tmp_path / "summary.txt"
-    assert main([str(data_dir / "vet_visits.csv"), str(output), "--threshold", "5000"]) == 0
+    assert main([str(data_dir / "input.csv"), str(output), "--threshold", "5000"]) == 0
     assert "(немає записів)" in output.read_text(encoding="utf-8")
 
 

@@ -20,12 +20,12 @@ DAY = date(2026, 3, 2)
 
 def _routine(cost: float = 450.5, animal: str = "Барсік") -> RoutineVisit:
     """Створює плановий візит для тестів."""
-    return RoutineVisit(animal, "Кіт", "Іваненко Олена", DAY, "Огляд", cost, "Огляд")
+    return RoutineVisit(animal, "Кіт", "Іваненко Олена", DAY, "Огляд", cost)
 
 
 def _urgent(cost: float = 2500.0, animal: str = "Рекс") -> UrgentVisit:
     """Створює ургентний візит для тестів."""
-    return UrgentVisit(animal, "Собака", "Петренко, Олег", DAY, "Перелом", cost, "Хірургія")
+    return UrgentVisit(animal, "Собака", "Петренко, Олег", DAY, "Перелом", cost)
 
 
 def test_cost_setter_accepts_correct_zero_and_boundary_values() -> None:
@@ -57,7 +57,7 @@ def test_text_and_date_setters_validate() -> None:
     with pytest.raises(ValueError, match="date"):
         visit.date = "2026-03-02"  # type: ignore[assignment]
     with pytest.raises(ValueError):
-        RoutineVisit("", "Кіт", "Іваненко Олена", DAY, "Огляд", 1.0, "Огляд")
+        RoutineVisit("", "Кіт", "Іваненко Олена", DAY, "Огляд", 1.0)
 
 
 def test_subtypes_have_different_final_cost() -> None:
@@ -74,16 +74,14 @@ def test_subtypes_have_different_final_cost() -> None:
 def test_base_class_operation_is_abstract() -> None:
     """Базовий клас лише оголошує final_cost()."""
     with pytest.raises(NotImplementedError):
-        VetVisit("Барсік", "Кіт", "Іваненко Олена", DAY, "Огляд", 1.0, "Огляд").final_cost()
+        VetVisit("Барсік", "Кіт", "Іваненко Олена", DAY, "Огляд", 1.0).final_cost()
 
 
 def test_equality_repr_and_str() -> None:
     """__eq__ за станом і підтипом, NotImplemented для іншого типу, repr/str."""
     assert _routine() == _routine()
     assert _routine() != _routine(cost=451.0)
-    assert _urgent(100.0) != RoutineVisit(
-        "Рекс", "Собака", "Петренко, Олег", DAY, "Перелом", 100.0, "Хірургія"
-    )
+    assert _urgent(100.0) != RoutineVisit("Рекс", "Собака", "Петренко, Олег", DAY, "Перелом", 100.0)
     assert _routine().__eq__("рядок") is NotImplemented
     assert repr(_routine()).startswith("RoutineVisit(animal='Барсік'")
     assert str(_urgent()) == "Рекс (Собака), 2026-03-02, ургентний: 3000.00"
@@ -114,7 +112,7 @@ def test_summary_dataclasses_are_frozen_and_comparable() -> None:
     assert stat == SpeciesStat("Кіт", 2, 800.5)
     with pytest.raises(dataclasses.FrozenInstanceError):
         stat.count = 3  # type: ignore[misc]
-    summary = ReportSummary(0, 0.0, 0.0, 0, 0.0, 1000.0, None, (), (), frozenset())
+    summary = ReportSummary(0, 0.0, 0, 0.0, 1000.0, None, (), (), frozenset())
     with pytest.raises(dataclasses.FrozenInstanceError):
         summary.count = 1  # type: ignore[misc]
 

@@ -17,20 +17,22 @@
 | перевірки в `loader.parse_*` | перевірки в setter-ах `@property` |
 | `make_summary` повертає `dict` | `ReportSummary` — `@dataclass(frozen=True)` |
 | немає надбавки | `final_cost()`: плановий — `cost`, ургентний — `cost × 1.20` |
-| `record["urgent"] is True` | атрибут підтипу `urgent`, тип обирається лише в loader |
+| одна функція для всіх записів | підтип обирається один раз у loader, далі — спільний протокол |
 
-Пакет `kzp_lab06` залишено без змін; новий пакет — `kzp_lab07`. CSV-поля та формат звіту ті самі.
-Старий словниковий результат: виторг 5700.50, середня 950.08, ургентних 3, найдорожчий — Рекс 2500.00.
-Новий об'єктний результат: ті самі значення + підсумкова вартість із надбавкою 6640.50.
+Пакет `kzp_lab06` залишено без змін; новий пакет — `kzp_lab07`. CSV-поля варіанта
+(`animal,species,owner,date,diagnosis,cost`) і формат звіту збережено.
+Старий словниковий результат: 6 візитів, середня 950.08, найдорожчий — Рекс 2500.00, відбір > 1000 — Рекс, Ласка.
+Новий об'єктний результат: ті самі рядки + 3 ургентні візити, підсумкова вартість з надбавкою 6640.50
+та візити за видами з підсумковою вартістю.
 
 ## 3. Модель
 
-`VetVisit.__init__(animal, species, owner, visit_date, diagnosis, cost, visit_type)` присвоює значення
-через властивості, тому валідація спрацьовує й під час створення, й під час зміни.
+`VetVisit.__init__(animal, species, owner, visit_date, diagnosis, cost)` присвоює значення через
+властивості, тому валідація спрацьовує і під час створення, і під час зміни.
 
 | Властивість | Інваріант setter-а |
 |-------------|--------------------|
-| animal, species, owner, diagnosis, visit_type | непорожній рядок, пробіли по краях прибираються |
+| animal, species, owner, diagnosis | непорожній рядок, пробіли по краях прибираються |
 | date | лише `datetime.date` |
 | cost | число (не bool), скінченне, ≥ 0; 0 і 1000.0 допустимі |
 | key | лише читання: `(owner, date)` |
@@ -54,7 +56,6 @@ class SpeciesStat:
 @dataclass(frozen=True)
 class ReportSummary:
     count: int
-    total_revenue: float
     average_cost: float
     urgent_count: int
     total_final_cost: float
@@ -79,10 +80,15 @@ class Costed(Protocol):
 ```
 
 `RoutineVisit.final_cost()` повертає `cost`, `UrgentVisit.final_cost()` — `cost * URGENT_RATE`
-(`URGENT_RATE = 1.20`, та сама формула, що в Java `UrgentVisit`). Функції `best_by_final_cost` і
+(`URGENT_RATE = 1.20`, та сама формула, що в Java `UrgentVisit` ЛР3). Функції `best_by_final_cost` і
 `total_final_cost` приймають будь-які об'єкти з `final_cost()` (качина типізація): тест передає й
-сторонній клас `Fee` без спільного предка. У `analysis` немає `isinstance` для підтипів —
-тип обирається один раз у `loader.build_visit` за полем `urgent`.
+сторонній клас `Fee` без спільного предка. У `analysis` немає `isinstance` для підтипів.
+
+**Правило вибору підтипу.** У CSV варіанта немає стовпця ургентності, тому `loader.build_visit`
+обирає підтип за діагнозом: якщо діагноз (без урахування регістру) містить одне зі слів
+`URGENT_DIAGNOSES` — травма, перелом, отруєння, кровотеча, опік, укус, задуха, непритомність —
+створюється `UrgentVisit`, інакше `RoutineVisit`. На контрольних даних ургентні: Рекс (перелом),
+Джек (отруєння), Ласка (травма).
 
 ## 6. Модулі
 
@@ -91,20 +97,22 @@ python/src/kzp_lab07/
 ├── __init__.py    # публічний API
 ├── errors.py      # DataError
 ├── models.py      # VetVisit, RoutineVisit, UrgentVisit, Costed, SpeciesStat, ReportSummary
-├── loader.py      # CSV → об'єкти, номер рядка, raise ... from
+├── loader.py      # CSV → об'єкти, URGENT_DIAGNOSES, номер рядка, raise ... from
 ├── analysis.py    # відбір, підсумки, протокольні функції
 ├── reporting.py   # format_base_report (сумісний з ЛР6), format_report, write_report
 └── cli.py         # kzp-lab07 <input.csv> <report.txt> [--threshold N], коди 0 / 2
 ```
 
+`models` не читає файлів, `loader` не будує звіт, `analysis` не залежить від CLI.
+
 ## 7. Тестування
 
-`python -m pytest` — **53 passed** (23 тести ЛР6 + 30 тестів ЛР7).
+`python -m pytest` — **54 passed** (23 тести ЛР6 + 31 тест ЛР7).
 
 | Файл | Тестів | Що перевіряє |
 |------|--------|--------------|
 | test_lab07_models.py | 16 | setter: коректне, нульове, граничне 1000.0, 7 хибних значень (параметризовано); текст і дата; різні `final_cost()`; абстрактна операція; `__eq__`/`__repr__`/`__str__`/hash; дублікати; key-сортування; frozen dataclass; протокол з обома підтипами та стороннім класом |
-| test_lab07_pipeline.py | 14 | loader обох підтипів, порожній вхід, 6 пошкоджених рядків з номером рядка, `__cause__` setter-а, відсутній стовпець і файл, підсумок за видами, граничне значення, порожній відбір, сумісність зі звітом ЛР6 (3 сценарії), CLI 0/2 |
+| test_lab07_pipeline.py | 15 | правило ургентних діагнозів, loader обох підтипів, порожній вхід, 6 пошкоджених рядків з номером рядка, `__cause__` setter-а, відсутній стовпець і файл, підсумок за видами, граничне значення, порожній відбір, сумісність зі звітом ЛР6 (3 сценарії), CLI 0/2 |
 
 ## 8. Порівняння звітів
 
@@ -114,10 +122,8 @@ python/src/kzp_lab07/
 
 ```text
 Звіт ветклініки (варіант 21)
-Кількість коректних записів: 6
-Загальний виторг: 5700.50
+Кількість візитів: 6
 Середня вартість візиту: 950.08
-Кількість ургентних візитів: 3
 Найдорожчий візит: Рекс (Собака, власник Петренко, Олег, 2026-03-02) — 2500.00
 Візити з вартістю > 1000.00: 2
   - Рекс (Собака, власник Петренко, Олег, 2026-03-02) — 2500.00
@@ -129,6 +135,7 @@ python/src/kzp_lab07/
   Тхір: 1
 Власники (4): Іваненко Олена; Бондар Ірина; Коваль Андрій; Петренко, Олег
 
+Ургентних візитів (за діагнозом): 3
 Підсумкова вартість з ургентною надбавкою (×1.20): 6640.50
 Візити за видами тварин (кількість / підсумкова вартість):
   Кіт: 2 / 800.50
@@ -142,14 +149,14 @@ python/src/kzp_lab07/
 ```text
 python -m venv .venv
 .venv\Scripts\python -m pip install -e ".[dev]"
-.venv\Scripts\python -m pytest            → 53 passed
+.venv\Scripts\python -m pytest            → 54 passed
 .venv\Scripts\ruff check .                → All checks passed!
-.venv\Scripts\ruff format --check .       → 22 files already formatted
+.venv\Scripts\ruff format --check .       → 23 files already formatted
 .venv\Scripts\python -m build             → kzp_vet_report-0.7.0-py3-none-any.whl
 python -m venv .venv-wheel
 .venv-wheel\Scripts\python -m pip install --no-deps dist\kzp_vet_report-0.7.0-py3-none-any.whl
-.venv-wheel\Scripts\kzp-lab07 data\vet_visits.csv reports\summary-lab07.txt   → код 0
-.venv-wheel\Scripts\kzp-lab07 data\broken.csv reports\broken-lab07.txt        → код 2
+.venv-wheel\Scripts\kzp-lab07 data\input.csv reports\summary-lab07.txt   → код 0
+.venv-wheel\Scripts\kzp-lab07 data\broken.csv reports\broken-lab07.txt   → код 2
 ```
 
 Версія пакета 0.7.0, скрипти `kzp-lab06` і `kzp-lab07`. Workflow `python.yml` на Ubuntu/Windows/macOS
@@ -161,10 +168,10 @@ python -m venv .venv-wheel
 | Issue | Зміна | Перевірка |
 |-------|-------|-----------|
 | #16 | `VetVisit` з `@property` | test_lab07_models (setter, eq, repr) |
-| #17 | підтипи, `Costed` | test_subtypes…, test_protocol… |
+| #17 | підтипи, `Costed`, правило діагнозів | test_subtypes…, test_protocol…, test_urgent_rule… |
 | #18 | frozen dataclass | test_summary_dataclasses_are_frozen… |
 | #19 | модулі kzp_lab07 | test_lab07_pipeline |
-| #20 | тести | pytest — 53 passed |
+| #20 | тести | pytest — 54 passed |
 | #21 | CI, wheel, документація | зелений CI на 3 ОС |
 
 Pull Request `lab07 → lab06` містить `Closes #16 … #21` і порівняння звітів.
@@ -173,9 +180,11 @@ Pull Request `lab07 → lab06` містить `Closes #16 … #21` і порів
 
 ШІ-асистент Claude Code (Anthropic) у ролях розробника, валідатора, DevOps і документатора.
 Прийнято: окремий пакет `kzp_lab07` замість переписування `kzp_lab06` (зберігає старий результат
-для порівняння), `__hash__ = None` для змінюваної сутності, формулу надбавки з Java-коду.
-Відхилено: перевірки `isinstance` в analysis. Виправлено: затінення імені `date` властивістю класу
-(імпорт `datetime as dt`). Власний внесок: вибір моделі, формул і перевірка пояснень кожного класу.
+для порівняння), `__hash__ = None` для змінюваної сутності, формулу надбавки з Java-коду,
+вибір підтипу за документованим списком ургентних діагнозів. Відхилено: перевірки `isinstance`
+в analysis; додатковий стовпець ургентності в CSV (варіант його не передбачає).
+Виправлено: затінення імені `date` властивістю класу (імпорт `datetime as dt`).
+Власний внесок: вибір моделі, формул і перевірка пояснень кожного класу.
 
 ## 12. Відповіді на контрольні питання
 
