@@ -51,3 +51,9 @@ java -jar target/lab01-1.5.0.jar [input.csv] [vet_visits.csv] [каталог-в
 
 CI (`.github/workflows/ci.yml`) виконує `verify`, `package`, запуск JAR на Ubuntu, Windows і macOS
 та публікує JAR і згенерований CSV як артефакти.
+
+## Python-блок (ЛР6–ЛР7)
+
+Каталог `python/` містить пакет `kzp_lab06` (обробка CSV функціями, CLI `kzp-lab06`), який
+читає `python/data/input.csv` з полями варіанта 21 `animal,species,owner,date,diagnosis,cost`.
+Опис — `python/README.md`, звіт — `python/REPORT.md`, CI — `.github/workflows/python.yml`.
