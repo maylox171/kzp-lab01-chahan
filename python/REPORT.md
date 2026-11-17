@@ -68,7 +68,8 @@ python/src/kzp_lab06/
 ```python
 def make_summary(records, *metrics, threshold=THRESHOLD, **labels) -> dict[str, object]: ...
 
-make_summary(records, "cost", cost="Сума дорогих")   # сума cost відібраних записів = 3700.0
+
+make_summary(records, "cost", cost="Сума дорогих")  # сума cost відібраних записів = 3700.0
 ```
 
 `metrics` усередині — кортеж, `labels` — словник; типове значення `threshold=1000.0` незмінне.
