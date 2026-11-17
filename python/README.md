@@ -35,3 +35,20 @@ python -m venv .venv
 .venv\Scripts\python -m build
 .venv\Scripts\kzp-lab06 data\input.csv reports\summary.txt
 ```
+
+## ЛР7: пакет `kzp_lab07` (об'єктна модель)
+
+| Модуль | Призначення |
+|--------|-------------|
+| `models.py` | `VetVisit` (`@property` + setter-валідація), `RoutineVisit`, `UrgentVisit` (`final_cost()` ×1.20), протокол `Costed`, frozen dataclass `SpeciesStat`, `ReportSummary` |
+| `loader.py` | CSV → об'єкти відповідного підтипу, `DataError` з номером рядка |
+| `analysis.py` | відбір, найдорожчий візит, візити за видами тварин, протокольні функції |
+| `reporting.py` | звіт, сумісний зі звітом ЛР6, + розділ підсумкової вартості |
+| `cli.py` | `kzp-lab07 <input.csv> <report.txt> [--threshold N]`, коди 0 / 2 |
+
+Звіт ЛР7 — `REPORT.md`, звіт ЛР6 — `REPORT_lab06.md`.
+
+**Правило вибору підтипу (ЛР7).** У CSV варіанта немає стовпця ургентності, тому `loader`
+обирає `UrgentVisit`, якщо діагноз (без урахування регістру) містить одне зі слів
+`URGENT_DIAGNOSES`: травма, перелом, отруєння, кровотеча, опік, укус, задуха, непритомність;
+інакше — `RoutineVisit`. На `data/input.csv` ургентні: Рекс (перелом), Джек (отруєння), Ласка (травма).
