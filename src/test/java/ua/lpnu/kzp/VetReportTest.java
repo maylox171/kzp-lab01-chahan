@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.time.LocalDate;
 import java.util.DoubleSummaryStatistics;
 import java.util.List;
 import java.util.Map;
@@ -14,15 +13,13 @@ import org.junit.jupiter.api.Test;
 
 class VetReportTest {
 
-    private static final LocalDate DAY = LocalDate.of(2026, 3, 1);
-
     private final List<VetVisit> visits = List.of(
-            new RoutineVisit("Барсік", "Кіт", "Іваненко Олена", DAY, "Огляд", "Огляд", 500.0),
-            new UrgentVisit("Рекс", "Собака", "Петренко Олег", DAY, "Перелом", "Операція", 2000.0),
-            new RoutineVisit("Мурка", "Кіт", "Бондар Ірина", DAY, "Профілактика", "Вакцинація", 300.0),
-            new UrgentVisit("Джек", "Собака", "Коваль Андрій", DAY, "Травма", "Травма", 1500.0),
-            new RoutineVisit("Шарик", "Собака", "Мельник Петро", DAY, "Огляд", "Огляд", 400.0),
-            new UrgentVisit("Пушок", "Кіт", "Ткачук Віра", DAY, "Отруєння", "Невідкладна допомога", 1200.0)
+            new RoutineVisit("Барсік", "Кіт", "Огляд", 500.0),
+            new UrgentVisit("Рекс", "Собака", "Операція", 2000.0),
+            new RoutineVisit("Мурка", "Кіт", "Вакцинація", 300.0),
+            new UrgentVisit("Джек", "Собака", "Травма", 1500.0),
+            new RoutineVisit("Шарик", "Собака", "Огляд", 400.0),
+            new UrgentVisit("Пушок", "Кіт", "Невідкладна допомога", 1200.0)
     );
 
     @Test
