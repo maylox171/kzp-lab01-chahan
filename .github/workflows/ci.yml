@@ -53,7 +53,7 @@ jobs:
 
       - name: Upload JAR
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: jar-${{ matrix.os }}-${{ github.run_number }}
           path: target/*.jar
@@ -61,7 +61,7 @@ jobs:
 
       - name: Upload CSV
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: csv-${{ matrix.os }}-${{ github.run_number }}
           path: |

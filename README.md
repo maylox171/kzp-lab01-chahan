@@ -53,6 +53,6 @@ CI (`.github/workflows/ci.yml`) виконує `verify`, `package`, запуск
 
 ## Python-блок (ЛР6–ЛР7)
 
-Каталог `python/` містить пакет `kzp_lab06` (обробка CSV функціями, CLI `kzp-lab06`), який
-читає `data/vet_visits.csv`, згенерований цим Java-застосунком. Опис — `python/README.md`,
+Каталог `python/` містить пакети `kzp_lab06` (обробка CSV функціями, CLI `kzp-lab06`) і `kzp_lab07` (об'єктна модель, CLI `kzp-lab07`), які
+читають `data/vet_visits.csv`, згенерований цим Java-застосунком. Опис — `python/README.md`,
 звіт — `python/REPORT.md`, CI — `.github/workflows/python.yml`.

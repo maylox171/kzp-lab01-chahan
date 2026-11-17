@@ -56,9 +56,16 @@ jobs:
           set -e
           echo "Код завершення для пошкодженого CSV: $code"
           test "$code" -eq 2
+          "$PY" -m kzp_lab07.cli data/vet_visits.csv reports/wheel-summary-lab07.txt
+          set +e
+          "$PY" -m kzp_lab07.cli data/broken.csv reports/wheel-broken-lab07.txt
+          code=$?
+          set -e
+          echo "Код завершення ЛР7 для пошкодженого CSV: $code"
+          test "$code" -eq 2
 
       - name: Upload wheel
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: kzp-vet-report-${{ matrix.os }}-${{ github.run_number }}
           path: |
