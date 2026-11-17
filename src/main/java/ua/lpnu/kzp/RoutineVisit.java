@@ -1,53 +1,36 @@
 package ua.lpnu.kzp;
 
-import java.util.Objects;
+import java.time.LocalDate;
 
 /**
- * Плановий візит до ветклініки.
+ * Плановий візит до ветклініки: підсумкова вартість дорівнює базовій.
  */
 public final class RoutineVisit extends VetVisit {
 
-    public RoutineVisit(String animal, String species, String visitType, double price) {
-        super(
-            validateAnimal(animal),
-            validateSpecies(species),
-            validateVisitType(visitType),
-            validatePrice(price),
-            VisitKind.ROUTINE
-        );
+    /**
+     * Створює плановий візит.
+     *
+     * @param animal    кличка тварини
+     * @param species   вид тварини
+     * @param owner     власник
+     * @param date      дата візиту
+     * @param diagnosis діагноз
+     * @param visitType тип візиту
+     * @param price     базова вартість
+     * @throws IllegalArgumentException якщо значення порушують інваріанти моделі
+     */
+    public RoutineVisit(String animal, String species, String owner, LocalDate date,
+            String diagnosis, String visitType, double price) {
+        super(requireText(animal, "Кличка"), requireText(species, "Вид"), requireText(owner, "Власник"),
+                requireDate(date), requireText(diagnosis, "Діагноз"), requireText(visitType, "Тип візиту"),
+                requirePrice(price), VisitKind.ROUTINE);
     }
 
-    private static String validateAnimal(String animal) {
-        String checked = Objects.requireNonNull(animal, "Кличка не може бути null");
-        if (checked.isBlank()) {
-            throw new IllegalArgumentException("Кличка не може бути порожньою");
-        }
-        return checked;
-    }
-
-    private static String validateSpecies(String species) {
-        String checked = Objects.requireNonNull(species, "Вид не може бути null");
-        if (checked.isBlank()) {
-            throw new IllegalArgumentException("Вид не може бути порожнім");
-        }
-        return checked;
-    }
-
-    private static String validateVisitType(String visitType) {
-        String checked = Objects.requireNonNull(visitType, "Тип візиту не може бути null");
-        if (checked.isBlank()) {
-            throw new IllegalArgumentException("Тип візиту не може бути порожнім");
-        }
-        return checked;
-    }
-
-    private static double validatePrice(double price) {
-        if (price < 0 || !Double.isFinite(price)) {
-            throw new IllegalArgumentException("ціна не може бути від'ємною");
-        }
-        return price;
-    }
-
+    /**
+     * Повертає вартість планового візиту без надбавки.
+     *
+     * @return базова вартість
+     */
     @Override
     public double calculateFinalCost() {
         return getPrice();
